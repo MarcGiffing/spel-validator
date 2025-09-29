@@ -6,16 +6,15 @@ import com.giffing.spel.validator.core.result.SpelMethodParam;
 import org.springframework.expression.spel.SpelNode;
 import org.springframework.expression.spel.ast.BeanReference;
 import org.springframework.expression.spel.ast.MethodReference;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
 
 import java.util.List;
 
 /**
  * Service for parsing and analyzing SpEL expressions.
  */
-public class SpELParser {
+public class SpelExpressionParser {
 
-    private final SpelExpressionParser parser = new SpelExpressionParser();
+    private final org.springframework.expression.spel.standard.SpelExpressionParser parser = new org.springframework.expression.spel.standard.SpelExpressionParser();
 
     /**
      * Parses the given SpEL expression and returns the result with all bean and method references.

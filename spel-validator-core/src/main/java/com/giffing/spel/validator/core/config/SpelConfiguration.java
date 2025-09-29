@@ -14,7 +14,7 @@ import java.util.List;
  */
 @Getter
 @Builder
-public class SpELConfiguration {
+public class SpelConfiguration {
     /**
      * The base package to scan for annotated classes and methods.
      */

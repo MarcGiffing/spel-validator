@@ -2,10 +2,10 @@ package com.giffing.spel.validator.assertion;
 
 import com.giffing.spel.validator.assertion.usecase_1.MeineAnnotation;
 import com.giffing.spel.validator.assertion.usecase_1.Testklasse;
-import com.giffing.spel.validator.core.SpELParser;
-import com.giffing.spel.validator.core.SpELValidator;
+import com.giffing.spel.validator.core.SpelExpressionParser;
+import com.giffing.spel.validator.core.SpelScanner;
 import com.giffing.spel.validator.core.config.AnnotationToScan;
-import com.giffing.spel.validator.core.config.SpELConfiguration;
+import com.giffing.spel.validator.core.config.SpelConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,9 +14,9 @@ public class SpelValidatorAssertTest {
 
     @Test
     public void test() {
-        var spelValidator = new SpELValidator(new SpELParser());
+        var spELScanner = new SpelScanner(new SpelExpressionParser());
 
-        var result = spelValidator.validateAllExpressions(SpELConfiguration
+        var result = spELScanner.scan(SpelConfiguration
                 .builder()
                 .basePackage(Testklasse.class.getPackageName())
                 .annotation(AnnotationToScan.of(MeineAnnotation.class))

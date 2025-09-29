@@ -15,7 +15,7 @@ class SpelAssertionSecurityTest {
                 .registerSecurityDefaults()
                 .packageName(FirstController.class.getPackageName())
                 .scanSpEL()
-                .hasInvalidExpression();
+                .allValid();
     }
 
     @Test
@@ -24,7 +24,7 @@ class SpelAssertionSecurityTest {
                 .registerSecurityDefaults()
                 .packageName(SecondController.class.getPackageName())
                 .scanSpEL()
-                .hasOnlyValidExpressions()
+                .allValid()
                 .usesOnlyMethods("hasRole")
                 .verifyMethodParameter("hasRole", "ROLE_ADMIN", "ROLE_USER");
     }

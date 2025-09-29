@@ -13,7 +13,7 @@ class SpelAssertionTest {
                 .packageName(Testklasse.class.getPackageName())
                 .annotation(MeineAnnotation.class)
                 .scanSpEL()
-                .hasOnlyValidExpressions();
+                .allValid();
 
     }
 

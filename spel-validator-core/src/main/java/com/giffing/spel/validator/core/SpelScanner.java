@@ -1,10 +1,9 @@
 package com.giffing.spel.validator.core;
 
 import com.giffing.spel.validator.core.config.AnnotationToScan;
-import com.giffing.spel.validator.core.config.SpELConfiguration;
-import com.giffing.spel.validator.core.result.ValidationResult;
+import com.giffing.spel.validator.core.config.SpelConfiguration;
+import com.giffing.spel.validator.core.result.SpelScanResult;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.annotation.MergedAnnotations;
@@ -18,17 +17,16 @@ import static org.springframework.core.annotation.MergedAnnotations.SearchStrate
 
 @RequiredArgsConstructor
 @Slf4j
-public class SpELValidator {
+public class SpelScanner {
 
-    private final SpELParser spelParser;
+    private final SpelExpressionParser spelExpressionParser;
 
     /**
-     * Validiert alle SpEL-Ausdrücke in den konfigurierten Annotationen.
+     * Dertermines all classes in the configured base package that are annotated with one of the configured annotations.
      */
-    @SneakyThrows
-    public List<ValidationResult> validateAllExpressions(SpELConfiguration configuration) {
-        List<ValidationResult> results = new ArrayList<>();
-        var candidates = SpElScanner.findCandidates(configuration);
+    public List<SpelScanResult> scan(SpelConfiguration configuration) {
+        List<SpelScanResult> results = new ArrayList<>();
+        var candidates = SpelExpressionLocator.findCandidates(configuration);
         for (var candidate : candidates) {
             results.addAll(handleClassAnnotations(configuration, candidate));
             results.addAll(handleMethodsAnnotations(configuration, candidate));
@@ -36,26 +34,26 @@ public class SpELValidator {
         return results;
     }
 
-    private List<ValidationResult> handleClassAnnotations(SpELConfiguration configuration, Class<?> clazz) {
-        List<ValidationResult> results = new ArrayList<>();
+    private List<SpelScanResult> handleClassAnnotations(SpelConfiguration configuration, Class<?> clazz) {
+        List<SpelScanResult> results = new ArrayList<>();
         for (var annotationToScan : configuration.getAnnotations()) {
             if (annotationToScan.isAnnotation()) {
                 getExpressionFromClass(clazz, annotationToScan)
-                        .map(expression -> validateExpression(expression, clazz, null))
+                        .map(expression -> parseExpression(expression, clazz, null))
                         .ifPresent(results::add);
             }
         }
         return results;
     }
 
-    private List<ValidationResult> handleMethodsAnnotations(SpELConfiguration configuration, Class<?> clazz) {
-        List<ValidationResult> results = new ArrayList<>();
+    private List<SpelScanResult> handleMethodsAnnotations(SpelConfiguration configuration, Class<?> clazz) {
+        List<SpelScanResult> results = new ArrayList<>();
         for (Method method : clazz.getDeclaredMethods()) {
             for (var annotationToScan : configuration.getAnnotations()) {
                 if (annotationToScan.isAnnotation()) {
                     getExpressionFromMethod(method, annotationToScan)
                             .map(expression ->
-                                    validateExpression(expression, clazz, method.getName()))
+                                    parseExpression(expression, clazz, method.getName()))
                             .ifPresent(results::add);
                 }
             }
@@ -90,12 +88,12 @@ public class SpELValidator {
         }
     }
 
-    private ValidationResult validateExpression(String expressionValue, Class<?> className, String methodName) {
+    private SpelScanResult parseExpression(String expressionValue, Class<?> className, String methodName) {
         try {
-            var expressionResult = spelParser.parseExpression(expressionValue);
-            return ValidationResult.valid(className, methodName, expressionValue, expressionResult);
+            var expressionResult = spelExpressionParser.parseExpression(expressionValue);
+            return SpelScanResult.valid(className, methodName, expressionValue, expressionResult);
         } catch (Exception e) {
-            return ValidationResult.invalid(className, methodName, expressionValue, e.getMessage());
+            return SpelScanResult.invalid(className, methodName, expressionValue, e.getMessage());
         }
     }
 

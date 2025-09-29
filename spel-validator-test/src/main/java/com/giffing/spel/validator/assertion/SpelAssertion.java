@@ -1,9 +1,9 @@
 package com.giffing.spel.validator.assertion;
 
-import com.giffing.spel.validator.core.SpELParser;
-import com.giffing.spel.validator.core.SpELValidator;
+import com.giffing.spel.validator.core.SpelExpressionParser;
+import com.giffing.spel.validator.core.SpelScanner;
 import com.giffing.spel.validator.core.config.AnnotationToScan;
-import com.giffing.spel.validator.core.config.SpELConfiguration;
+import com.giffing.spel.validator.core.config.SpelConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
@@ -51,9 +51,9 @@ public class SpelAssertion {
         }
 
         public SpelValidatorAssert scanSpEL() {
-            var spelValidator = new SpELValidator(new SpELParser());
+            var spelScanner = new SpelScanner(new SpelExpressionParser());
 
-            var results = spelValidator.validateAllExpressions(SpELConfiguration
+            var results = spelScanner.scan(SpelConfiguration
                     .builder()
                     .basePackage(packageName)
                     .annotations(annotations.stream().map(AnnotationToScan::of).toList())

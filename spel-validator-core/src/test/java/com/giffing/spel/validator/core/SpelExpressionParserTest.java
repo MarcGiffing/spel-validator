@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class SpELParserTest {
+public class SpelExpressionParserTest {
 
-    private final SpELParser parser = new SpELParser();
+    private final SpelExpressionParser parser = new SpelExpressionParser();
 
     @Test
     void parsesSingleBeanReference() {

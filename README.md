@@ -24,7 +24,7 @@ public void assertSpEL() {
             .basePackage("com.examples")
             .annotation(MyCustomAnnotation.class) // Specify custom annotation to scan
             .scanSpEL() // Perform the scan
-            .hasOnlyValidExpressions() // Verifies all expressions are valid
+            .allValid() // Verifies all expressions are valid
             .usesOnlyBeans("mySecurityBean") // Restrict to usage of specific beans within SpEL
             .usesOnlyMethods("hasRole") // Restrict to usage of specific methods within SpEL
             .verifyMethodParameter("hasRole", "ROLE_ADMIN", "ROLE_USER", "ROLE_GUEST"); // Restrict parameters for specific method;

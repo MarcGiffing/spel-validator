@@ -1,73 +1,54 @@
 package com.giffing.spel.validator.assertion;
 
-import com.giffing.spel.validator.core.result.SpelMethod;
+import com.giffing.spel.validator.core.SpelValidator;
+import com.giffing.spel.validator.core.result.SpelScanResult;
+import com.giffing.spel.validator.core.result.ValidationItem;
 import com.giffing.spel.validator.core.result.ValidationResult;
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.api.AbstractAssert;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-public class SpelValidatorAssert extends AbstractAssert<SpelValidatorAssert, List<ValidationResult>> {
+public class SpelValidatorAssert extends AbstractAssert<SpelValidatorAssert, List<SpelScanResult>> {
 
-    public SpelValidatorAssert(List<ValidationResult> actual) {
+    public SpelValidatorAssert(List<SpelScanResult> actual) {
         super(actual, SpelValidatorAssert.class);
     }
 
-    public static SpelValidatorAssert assertThat(List<ValidationResult> actual) {
+    public static SpelValidatorAssert assertThat(List<SpelScanResult> actual) {
         return new SpelValidatorAssert(actual);
     }
 
 
-    public SpelValidatorAssert hasOnlyValidExpressions() {
+    public SpelValidatorAssert allValid() {
         isNotNull();
-        var invalidExpressions = actual.stream()
-                .filter(vr -> vr.getStatus() == ValidationResult.Status.INVALID)
-                .toList();
-        if(!invalidExpressions.isEmpty()) {
-            var errorMessages = new ArrayList<String>();
-            for(var invalid : invalidExpressions) {
-                errorMessages.add("❌ %s%s - %s".formatted(
-                        invalid.getClazz().getSimpleName(),
-                        invalid.getMethod() != null ? "(" + invalid.getMethod() + ")" : "",
-                        invalid.getErrorMessage()
-                ));
-            }
+        var spelValidator = new SpelValidator(actual);
+        var allValid = spelValidator.allMatchStatus(SpelScanResult.Status.VALID);
+        if(!allValid) {
             failWithMessage("""
                     ❌ Found invalid SpEL expressions:
                     \t%s
-                    """, String.join("\n\t", errorMessages));
+                    """, String.join("\n\t❌\t", actual.stream()
+                    .filter(x -> x.getStatus().equals(SpelScanResult.Status.INVALID))
+                    .map(SpelValidator::getErrorMessageOfInvalidExpression)
+                    .toList()));
         }
         return this;
     }
 
-    /**
-     * Asserts that there is at least one invalid SpEL expression and outputs all error messages.
-     * Fails if no invalid expressions are found.
-     *
-     * @return this assertion object for method chaining
-     */
-    public SpelValidatorAssert hasInvalidExpression() {
+    public SpelValidatorAssert hasErrors() {
         isNotNull();
-        var invalidExpressions = actual.stream()
-                .filter(vr -> vr.getStatus() == ValidationResult.Status.INVALID)
-                .toList();
-        if (invalidExpressions.isEmpty()) {
-            failWithMessage("Expected at least one invalid SpEL expression, but none found.");
-        } else {
-            var errorMessages = new ArrayList<String>();
-            for (var invalid : invalidExpressions) {
-                errorMessages.add("❌ %s%s - %s".formatted(
-                        invalid.getClazz().getSimpleName(),
-                        invalid.getMethod() != null ? "(" + invalid.getMethod() + ")" : "",
-                        invalid.getErrorMessage()
-                ));
-            }
-            log.info("""
-                    ❌ Found invalid SpEL expressions:
-                    	{}
-                    """, String.join("\n\t", errorMessages));
+        var spelValidator = new SpelValidator(actual);
+        var anyInvalid = spelValidator.anyMatchStatus(SpelScanResult.Status.INVALID);
+        if(!anyInvalid) {
+            failWithMessage("""
+                    ❌ No Errors found. Expected any invalid SpEL expressions:
+                    \t%s
+                    """, String.join("\n\t✅\t", actual.stream()
+                    .filter(x -> x.getStatus().equals(SpelScanResult.Status.VALID))
+                    .map(SpelValidator::getInfoMessageOfValidExpression)
+                    .toList()));
         }
         return this;
     }
@@ -85,36 +66,10 @@ public class SpelValidatorAssert extends AbstractAssert<SpelValidatorAssert, Lis
      */
     public SpelValidatorAssert usesOnlyMethods(List<String> allowedMethods) {
         isNotNull();
-        List<String> errorMessages = new ArrayList<>();
-        for (ValidationResult r : actual) {
-            switch (r.getStatus()) {
-                case VALID -> {
-                    var er = r.getExpressionResult();
-                    var notAllowed = er.getMethodReferences().stream()
-                            .map(SpelMethod::getName)
-                            .filter(m -> !allowedMethods.contains(m))
-                            .toList();
-                    if (!notAllowed.isEmpty()) {
-                        errorMessages.add("❌ %s%s - '%s'"
-                                .formatted(r.getClazz().getSimpleName(),
-                                        r.getMethod() != null ? "(" + r.getMethod() + ")" : "",
-                                        notAllowed));
-                    }
-                }
-                case INVALID -> {
-                    errorMessages.add("❌ %s%s - Cannot check method references because there are invalid expressions. Please fix them first: %s"
-                            .formatted(r.getClazz().getSimpleName(),
-                                    r.getMethod() != null ? "(" + r.getMethod() + ")" : "",
-                                    r.getErrorMessage())
-                    );
-                }
-            }
-        }
-        if (!errorMessages.isEmpty()) {
-            failWithMessage("""
-                    ❌ Method reference not allowed - (allowed:'%s')
-                    \t%s
-                    """, allowedMethods, String.join("\n\t", errorMessages));
+        var spelValidator = new SpelValidator(actual);
+        var validationResult = spelValidator.usesOnlyMethods(allowedMethods);
+        if (validationResult.getStatus().equals(ValidationResult.ValidationStatus.ERROR)) {
+            fail(validationResult);
         }
 
         return this;
@@ -126,36 +81,10 @@ public class SpelValidatorAssert extends AbstractAssert<SpelValidatorAssert, Lis
 
     public SpelValidatorAssert usesOnlyBeans(List<String> allowedBeans) {
         isNotNull();
-        List<String> errorMessages = new ArrayList<>();
-        for (ValidationResult r : actual) {
-            switch (r.getStatus()) {
-                case VALID -> {
-                    var er = r.getExpressionResult();
-                    var notAllowed = er.getBeanReferences().stream()
-                            .filter(m -> !allowedBeans.contains(m))
-                            .toList();
-                    if (!notAllowed.isEmpty()) {
-                        errorMessages.add("❌ %s%s - '%s'"
-                                .formatted(r.getClazz().getSimpleName(),
-                                        r.getMethod() != null ? "(" + r.getMethod() + ")" : "",
-                                        notAllowed));
-                    }
-                }
-                case INVALID -> {
-                    errorMessages.add("❌ %s%s - Cannot check bean references because there are invalid expressions. Please fix them first: %s"
-                            .formatted(
-                                    r.getClazz().getSimpleName(),
-                                    r.getMethod() != null ? "(" + r.getMethod() + ")" : "",
-                                    r.getErrorMessage())
-                    );
-                }
-            }
-        }
-        if (!errorMessages.isEmpty()) {
-            failWithMessage("""
-                    ❌ Bean reference not allowed - (allowed:'%s')
-                    \t%s
-                    """, allowedBeans, String.join("\n\t", errorMessages));
+        var spelValidator = new SpelValidator(actual);
+        var validationResult = spelValidator.usesOnlyBeans(allowedBeans);
+        if (validationResult.getStatus().equals(ValidationResult.ValidationStatus.ERROR)) {
+            fail(validationResult);
         }
         return this;
     }
@@ -164,59 +93,24 @@ public class SpelValidatorAssert extends AbstractAssert<SpelValidatorAssert, Lis
         return verifyMethodParameter(methodName, List.of(allowedParams));
     }
 
-    /**
-     * Checks if only the given parameter values are used for the specified method reference in the SpEL expressions.
-     * Fails if any other parameter values are found for that method.
-     *
-     * @param methodName the name of the method to check
-     * @param allowedParams list of allowed parameter values (as String)
-     * @return this assertion object for method chaining
-     */
     public SpelValidatorAssert verifyMethodParameter(String methodName, List<String> allowedParams) {
-        isNotNull();
-        List<String> errorMessages = new ArrayList<>();
-        for (ValidationResult r : actual) {
-            switch (r.getStatus()) {
-                case VALID -> {
-                    var er = r.getExpressionResult();
-                    er.getMethodReferences().stream()
-                        .filter(mr -> methodName.equals(mr.getName()))
-                        .forEach(mr -> {
-                            for (var param : mr.getParams()) {
-                                if (!getQuotedValues(allowedParams).contains(param.getValue())) {
-                                    errorMessages.add("❌ %s%s - Method '%s' uses not allowed parameter value '%s'"
-                                            .formatted(r.getClazz().getSimpleName(),
-                                                    r.getMethod() != null ? "(" + r.getMethod() + ")" : "",
-                                                    methodName,
-                                                    param.getValue()));
-                                }
-                            }
-                        });
-                }
-                case INVALID -> {
-                    errorMessages.add("❌ %s%s - Cannot check method parameters because there are invalid expressions. Please fix them first: %s"
-                            .formatted(r.getClazz().getSimpleName(),
-                                    r.getMethod() != null ? "(" + r.getMethod() + ")" : "",
-                                    r.getErrorMessage())
-                    );
-                }
-            }
-        }
-        if (!errorMessages.isEmpty()) {
-            failWithMessage("""
-                    ❌ Method '%s' parameter value not allowed - (allowed:'%s')
-                    	%s
-                    """, methodName, allowedParams, String.join("\n\t", errorMessages));
+        var spelValidator = new SpelValidator(actual);
+        var validationResult = spelValidator.verifyMethodParameter(methodName, allowedParams);
+        if (validationResult.getStatus().equals(ValidationResult.ValidationStatus.ERROR)) {
+            fail(validationResult);
         }
         return this;
     }
 
-    public List<String> getQuotedValues(List<String> valuesToQuote) {
-        return valuesToQuote
-                .stream()
-                .map(v -> "'" + v + "'")
-                .toList();
+    private void fail(ValidationResult validationResult) {
+        failWithMessage("""
+                        ❌ %s
+                            %s
+                        """, validationResult.getMessage(),
+                validationResult.getItems()
+                        .stream()
+                        .map(ValidationItem::getMessage)
+                        .reduce("", (a, b) -> a + "\n\t" + "❌\t" + b));
     }
-
 
 }

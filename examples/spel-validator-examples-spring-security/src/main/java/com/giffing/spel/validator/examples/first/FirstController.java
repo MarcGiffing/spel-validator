@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class FirstController {
 
     @GetMapping("/first")
-    @PreAuthorize("hasRole('ROLE_USER') INVALID_EXPRESSION")
+    @PreAuthorize("hasRole('ROLE_USER')")
     public String first() {
         return "Hello, World!";
     }
